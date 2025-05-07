@@ -1,53 +1,41 @@
-import math
-import networkx as nx
-import numpy as np
 import os
-from utils import compute_similarities
+from utils import build_reading_plan, compute_cosine_similarities, build_graph
 
 CORPUS_DIR = "corpus"
 
 corpus = sorted(
     [os.path.join(CORPUS_DIR, f) for f in os.listdir(CORPUS_DIR) if f.endswith(".txt")]
 )
-read = [
-    "little-red-hen.txt",
-    "twenty-thousand-leagues.txt",
-]
-want_to_read = "natural-selection.txt"
+
+# helper dictionaries
+title_to_idx = {os.path.basename(p): i for i, p in enumerate(corpus)}
+idx_to_title = {i: os.path.basename(p) for i, p in enumerate(corpus)}
 
 
 if __name__ == "__main__":
-    similarities = compute_similarities(corpus)
+    similarities = compute_cosine_similarities(corpus)
+    G = build_graph(similarities)
 
-    # convert cosine similarities to angular distances
-    for i in range(len(similarities)):
-        for j in range(len(similarities[i])):
-            if similarities[i][j] <= 0.1:
-                similarities[i][j] = 0.0
-            else:
-                cos = np.clip(similarities[i][j], -1.0, 1.0)
-                similarities[i][j] = np.arccos(cos) * 2 / math.pi
-
-    # build the graph
-    G = nx.Graph()
-
-    # add nodes
-    G.add_nodes_from(range(len(similarities)))
-
-    # add edges
-    for i in range(len(similarities)):
-        for j in range(len(similarities[i])):
-            if similarities[i][j] > 0.0:
-                G.add_edge(i, j, weight=float(similarities[i][j]))
+    want_to_read = "black-beauty.txt"
+    read = [
+        "little-red-hen.txt",
+        "twenty-thousand-leagues.txt",
+    ]
 
     # get indices of read & want_to_read
-    read = [list.index(corpus, "corpus/" + title) for title in read]
-    want_to_read = list.index(corpus, "corpus/" + want_to_read)
+    idx_want_to_read = title_to_idx[want_to_read]
+    idx_read = [title_to_idx[title] for title in read]
+    reading_plan = build_reading_plan(G, idx_read, idx_want_to_read)
 
-    distances, paths = nx.single_source_dijkstra(G, want_to_read)  # type: ignore
-
-    print(f"Shortest distance and path from {corpus[want_to_read]} to:")
-    for i in read:
-        print(f"{corpus[i]}: {distances[i]}, path=[")
-        print(",\n".join([f"\t{corpus[idx]}" for idx in paths[i]]))
-        print("]")
+    print(f"Based on the books you've read, here is a reading plan for {want_to_read}:")
+    print("---")
+    print(
+        "\n".join(
+            [
+                f"{i + 1}. {idx_to_title[idx_title]}"
+                for i, idx_title in enumerate(reading_plan)
+            ]
+        )
+    )
+    print("---")
+    print("Enjoy!")
