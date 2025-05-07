@@ -18,17 +18,20 @@ def angular_distance(cosine_similarity):
     return np.arccos(cos) * 2 / math.pi
 
 
-def build_graph(cosine_similarities, threshold=0.1, distance_function=angular_distance):
+def build_graph(cosine_similarities, distance_function=angular_distance, top_k=3):
     G = nx.Graph()
     G.add_nodes_from(range(len(cosine_similarities)))
 
-    # convert all similarities above threshold to distance and add as edges
+    # convert top k similarities to distance and add as edges
     for i in range(len(cosine_similarities)):
-        for j in range(i + 1, len(cosine_similarities[i])):
-            if cosine_similarities[i][j] <= threshold:
-                continue
+        top_k_similar = sorted(
+            enumerate(cosine_similarities[i]), key=lambda x: x[1], reverse=True
+        )[
+            1 : top_k + 2
+        ]  # start at 1 to exclude similarity 1.0 (self)
 
-            G.add_edge(i, j, weight=distance_function(cosine_similarities[i][j]))
+        for j, sim in top_k_similar:
+            G.add_edge(i, j, weight=distance_function(sim))
 
     return G
 
